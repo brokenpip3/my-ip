@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: my-ip-ingress
+  namespace: my-ip
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  rules:
+  - host: my-ip.cluster.local
+    http:
+      paths:
+      - backend:
+          serviceName: my-ip-svc
+          servicePort: 8080
+        path: /
+  - host: myip.cluster.local
+    http:
+      paths:
+      - backend:
+          serviceName: my-ip-svc
+          servicePort: 8080
+        path: /

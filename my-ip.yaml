@@ -1,0 +1,94 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-ip
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: my-ip
+data:
+  default.conf: |+
+    server {
+      listen 8080;
+      server_name  my-ip;
+      set_real_ip_from 10.0.0.0/8;
+      real_ip_header X-Real-IP;
+      real_ip_recursive on;
+      
+      location / {
+        default_type text/plain;
+        return 200 $remote_addr;
+      }
+      
+      location /json {
+        default_type application/json;
+        return 200 "{\"ip\":\"$remote_addr\"}";
+      }} 
+    
+    server {
+      listen 9080;
+      server_name  my-ip;
+      location /healthz {
+        default_type text/plain;
+        return 200 "OK";
+      }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: my-ip
+  name: my-ip
+  namespace: my-ip
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-ip
+  template:
+    metadata:
+      labels:
+        app: my-ip
+    spec:
+      containers:
+      - name: my-ip
+        image: nginx
+        ports:
+        - containerPort: 8080
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nginx/conf.d
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 3
+      volumes:
+        - name: config
+          configMap:
+            name: nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: my-ip
+  name: my-ip-svc
+  namespace: my-ip
+spec:
+  ports:
+  - name: my-ip
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: my-ip
+  type: ClusterIP
+  # If you don't have an ingress controller you can use a Nodeport instead
+  #type: NodePort
+  externalTrafficPolicy: Local
+---
